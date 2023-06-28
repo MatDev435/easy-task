@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String @id @default(uuid())
+  githubId  Int    @unique
+  name      String
+  login     String
+  avatarUrl String
+
+  participatingAt Participant[]
+  ownGroups       Group[]
+}
+
+model Group {
+  id        String   @id @default(uuid())
+  ownerId   String
+  title     String
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  owner        User          @relation(fields: [ownerId], references: [id])
+  participants Participant[]
+  tasks        Task[]
+}
+
+model Participant {
+  id      String @id @default(uuid())
+  userId  String
+  groupId String
+
+  user  User   @relation(fields: [userId], references: [id])
+  group Group  @relation(fields: [groupId], references: [id])
+  tasks Task[]
+  note  Note[]
+
+  @@unique([groupId, userId])
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String
+  priority    String   @default("NORMAL")
+  finished    Boolean  @default(false)
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+  groupId     String?
+
+  group Group?      @relation(fields: [groupId], references: [id])
+  user  Participant @relation(fields: [userId], references: [id])
+  notes Note[]
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  userId    String
+  taskId    String?
+  content   String
+  createdAt DateTime @default(now())
+
+  task Task?       @relation(fields: [taskId], references: [id])
+  user Participant @relation(fields: [userId], references: [id])
+}
