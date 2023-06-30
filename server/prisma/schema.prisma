@@ -31,6 +31,7 @@ model Group {
   owner        User          @relation(fields: [ownerId], references: [id])
   participants Participant[]
   tasks        Task[]
+  admins       Admin[]
 }
 
 model Participant {
@@ -38,12 +39,22 @@ model Participant {
   userId  String
   groupId String
 
-  user  User   @relation(fields: [userId], references: [id])
-  group Group  @relation(fields: [groupId], references: [id])
+  user  User    @relation(fields: [userId], references: [id])
+  group Group   @relation(fields: [groupId], references: [id])
   tasks Task[]
   note  Note[]
+  Admin Admin[]
 
   @@unique([groupId, userId])
+}
+
+model Admin {
+  id      String @id @default(uuid())
+  userId  String
+  groupId String
+
+  group Group       @relation(fields: [groupId], references: [id])
+  user  Participant @relation(fields: [userId], references: [id])
 }
 
 model Task {

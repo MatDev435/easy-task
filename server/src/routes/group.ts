@@ -25,7 +25,7 @@ export async function groupRoutes(app: FastifyInstance) {
         };
     })
 
-    app.get('/groups/:id', async (req) => {
+    app.get('/groups/:id', async (req, rep) => {
         const { sub: userId } = req.user;
 
         const paramsSchema = z.object({
@@ -35,19 +35,65 @@ export async function groupRoutes(app: FastifyInstance) {
         const { id } = paramsSchema.parse(req.params);
 
         const group = await prisma.group.findUnique({
-            where: {
-                id,
-            },
+            where: { id },
 
             include: {
-                participants: true,
-                tasks: true
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                avatarUrl: true,
+                                name: true
+                            }
+                        }
+                    }
+                },
+
+                tasks: {
+                    select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                        priority: true,
+                        finished: true
+                    }
+                }
             }
         });
 
-        return {
-            group
+        if(!group) {
+            return rep.status(404).send('Grupo não encontrado');
         }
+
+        const admins = await prisma.admin.findMany({
+            where: {
+                groupId: id
+            }
+        });
+
+        const participant = await prisma.participant.findFirst({
+            where: {
+                groupId: id,
+                userId
+            }
+        });
+
+        let participantId: string | null = null;
+
+        if(participant) {
+            participantId = participant.id;
+        }
+
+        const isAdmin = group?.ownerId === userId || admins.some(admin => admin.userId === participantId);
+
+        const groupDetails = {
+            ...group,
+            isAdmin
+        }
+
+        return rep.status(200).send({
+            groupDetails,
+        })
     })
 
     app.post('/groups', async (req, rep) => {
@@ -82,4 +128,6 @@ export async function groupRoutes(app: FastifyInstance) {
 
         return rep.status(201).send({ code });
     })
+
+
 }
