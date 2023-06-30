@@ -53,7 +53,7 @@ model Task {
   description String
   priority    String   @default("NORMAL")
   finished    Boolean  @default(false)
-  dueDate     DateTime
+  dueDate     DateTime @default(now())
   createdAt   DateTime @default(now())
   groupId     String?
 

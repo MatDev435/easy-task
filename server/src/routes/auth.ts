@@ -70,12 +70,6 @@ export async function authRoutes(app: FastifyInstance) {
           }
         );
 
-        if(!token) {
-          console.log('f...');
-        }
-
-        console.log(token);
-
         return {
           token
         }
