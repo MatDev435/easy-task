@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import ShortUniqueId from 'short-unique-id';
+import { isUserGroupAdmin } from '../utils/isAdmin';
 
 export async function groupRoutes(app: FastifyInstance) {
     app.addHook('preHandler', async (request) => {
@@ -38,16 +39,7 @@ export async function groupRoutes(app: FastifyInstance) {
             where: { id },
 
             include: {
-                participants: {
-                    include: {
-                        user: {
-                            select: {
-                                avatarUrl: true,
-                                name: true
-                            }
-                        }
-                    }
-                },
+                _count: { select: { participants: true } },
 
                 tasks: {
                     select: {
@@ -65,26 +57,7 @@ export async function groupRoutes(app: FastifyInstance) {
             return rep.status(404).send('Grupo não encontrado');
         }
 
-        const admins = await prisma.admin.findMany({
-            where: {
-                groupId: id
-            }
-        });
-
-        const participant = await prisma.participant.findFirst({
-            where: {
-                groupId: id,
-                userId
-            }
-        });
-
-        let participantId: string | null = null;
-
-        if(participant) {
-            participantId = participant.id;
-        }
-
-        const isAdmin = group?.ownerId === userId || admins.some(admin => admin.userId === participantId);
+        const isAdmin = await isUserGroupAdmin({ userId, groupId: id });
 
         const groupDetails = {
             ...group,
@@ -129,5 +102,45 @@ export async function groupRoutes(app: FastifyInstance) {
         return rep.status(201).send({ code });
     })
 
+    app.patch('/groups/:id', async (req, rep) => {
+        const { sub: userId } = req.user;
 
+        const paramsSchema = z.object({
+            id: z.string()
+        });
+
+        const bodySchema = z.object({
+            newTitle: z.string()
+        });
+
+        const { id } = paramsSchema.parse(req.params);
+        const { newTitle } = bodySchema.parse(req.body);
+
+        try {
+            let group = await prisma.group.findUnique({
+                where: { id }
+            });
+
+            if(!group) {
+                return rep.status(404).send('Grupo não encontrado');
+            }
+
+            const isAdmin = await isUserGroupAdmin({ userId, groupId: id });
+
+            if(!isAdmin) {
+                return rep.status(403).send('Você não tem permissão suficiente');
+            }
+
+            const updatedGroup = await prisma.group.update({
+                where: { id },
+                data: { title: newTitle }
+            });
+
+            return rep.status(200).send(updatedGroup);
+        } catch (error) {
+            return rep.status(500).send('Erro ao atualizar o grupo');
+        }
+    })
+
+    
 }
