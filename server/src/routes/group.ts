@@ -142,5 +142,37 @@ export async function groupRoutes(app: FastifyInstance) {
         }
     })
 
-    
+    app.delete('/groups/:id', async (req, rep) => {
+        const { sub: userId } = req.user;
+
+        const paramsSchema = z.object({
+            id: z.string()
+        });
+
+        const { id } = paramsSchema.parse(req.params);
+
+        try {
+            const group = await prisma.group.findUnique({
+                where: { id }
+            });
+
+            if(!group) {
+                return rep.status(404).send('Grupo não encontrado');
+            }
+
+            const isAdmin = await isUserGroupAdmin({ userId, groupId: id });
+
+            if(!isAdmin) {
+                return rep.status(403).send('Você não tem permissões suficiente');
+            }
+
+            await prisma.group.delete({
+                where: { id },
+            });
+
+            return rep.status(200).send('Grupo deletado');
+        } catch (error) {
+            return rep.status(500).send('Erro ao excluir o grupo');
+        }lu
+    })
 }
