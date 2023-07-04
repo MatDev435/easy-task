@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import ShortUniqueId from 'short-unique-id';
 import { isUserGroupAdmin } from '../utils/isAdmin';
+import { isUserGroupParticipant } from '../utils/isParticipant';
 
 export async function groupRoutes(app: FastifyInstance) {
     app.addHook('preHandler', async (request) => {
@@ -55,6 +56,12 @@ export async function groupRoutes(app: FastifyInstance) {
 
         if(!group) {
             return rep.status(404).send('Grupo não encontrado');
+        }
+
+        const isParticipant = await isUserGroupParticipant({ userId, groupId: id });
+
+        if(!isParticipant) {
+            return rep.status(403).send('Você não tem permissões suficiente');
         }
 
         const isAdmin = await isUserGroupAdmin({ userId, groupId: id });
@@ -153,7 +160,11 @@ export async function groupRoutes(app: FastifyInstance) {
 
         try {
             const group = await prisma.group.findUnique({
-                where: { id }
+                where: { id },
+
+                include: {
+                    tasks: true
+                }
             });
 
             if(!group) {
@@ -166,13 +177,32 @@ export async function groupRoutes(app: FastifyInstance) {
                 return rep.status(403).send('Você não tem permissões suficiente');
             }
 
+            for(const task of group.tasks) {
+                await prisma.note.deleteMany({
+                    where: { taskId: task.id }
+                });
+            }
+
+            await prisma.task.deleteMany({
+                where: { groupId: id }
+            });
+
+            await prisma.admin.deleteMany({
+                where: { groupId: id }
+            });
+
+            await prisma.participant.deleteMany({
+                where: { groupId: id }
+            });
+
             await prisma.group.delete({
                 where: { id },
             });
 
             return rep.status(200).send('Grupo deletado');
         } catch (error) {
+            console.log(error);
             return rep.status(500).send('Erro ao excluir o grupo');
-        }lu
+        }
     })
 }
