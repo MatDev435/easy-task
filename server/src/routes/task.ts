@@ -30,4 +30,56 @@ export async function taskRoutes(app: FastifyInstance) {
             return rep.status(500).send('Erro ao carregar as tarefas');
         }
     })
+
+    app.post('/groups/:id/tasks', async (req, rep) => {
+        const { sub: userId } = req.user;
+
+        const paramsSchema = z.object({
+            id: z.string()
+        });
+
+        const bodySchema = z.object({
+            title: z.string().min(2),
+            description: z.string(),
+            priority: z.string(),
+            dueDate: z.string()
+        });
+
+        const { id } = paramsSchema.parse(req.params);
+        const { title, description, priority, dueDate } = bodySchema.parse(req.body);
+
+        try {
+            const group = await prisma.group.findUnique({
+                where: { id }
+            });
+
+            if(!group) {
+                return rep.status(404).send('O grupo não existe');
+            }
+
+            const participant = await prisma.participant.findFirst({
+                where: { groupId: id, userId }
+            });
+
+            if(!participant) {
+                return rep.status(404).send('Você não faz parte desse grupo');
+            }
+
+            const task = await prisma.task.create({
+                data: {
+                    title,
+                    description,
+                    priority,
+                    dueDate,
+                    userId: participant.id,
+                    groupId: group.id
+                }
+            });
+
+            return rep.status(201).send({ task });
+        } catch (error) {
+            console.log(error);
+            return rep.status(500).send('Erro ao criar a tarefa');
+        }
+    })
 }
