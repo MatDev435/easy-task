@@ -79,7 +79,7 @@ export async function groupRoutes(app: FastifyInstance) {
         const code = String(generate()).toUpperCase();
 
         try {
-            await prisma.group.create({
+            const group = await prisma.group.create({
                 data: {
                     title,
                     code,
@@ -92,11 +92,11 @@ export async function groupRoutes(app: FastifyInstance) {
                     }
                 }
             });
-        } catch (error) {
-            console.log(error);
-        }
 
-        return rep.status(201).send({ code });
+            return rep.status(201).send({ group });
+        } catch (error) {
+            return rep.status(500).send('Ero ao criar o grupo');
+        }
     })
 
     app.patch('/groups/:id', async (req, rep) => {
