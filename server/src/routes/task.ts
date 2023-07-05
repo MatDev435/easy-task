@@ -42,7 +42,7 @@ export async function taskRoutes(app: FastifyInstance) {
             title: z.string().min(2),
             description: z.string(),
             priority: z.string(),
-            dueDate: z.string()
+            dueDate: z.string().datetime()
         });
 
         const { id } = paramsSchema.parse(req.params);
