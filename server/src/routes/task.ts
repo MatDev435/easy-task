@@ -119,4 +119,32 @@ export async function taskRoutes(app: FastifyInstance) {
             return rep.status(500).send('Erro ao alterar o status de conclusão da tarefa');
         }
     })
+
+    app.delete('/tasks/:id', async (req, rep) => {
+        const { sub: userId } = req.user;
+
+        const paramsSchema = z.object({
+            id: z.string()
+        });
+
+        const { id } = paramsSchema.parse(req.params);
+
+        try {
+            const task = await prisma.task.findUnique({
+                where: { id }
+            });
+
+            if(!task) {
+                return rep.status(404).send('Tarefa não encontrada');
+            }
+
+            await prisma.task.delete({
+                where: { id }
+            });
+
+            return rep.status(200).send('Tarefa deletada');
+        } catch (error) {
+            return rep.status(500).send('Erro ao deletar a tarefa');
+        }
+    })
 }
