@@ -82,4 +82,41 @@ export async function taskRoutes(app: FastifyInstance) {
             return rep.status(500).send('Erro ao criar a tarefa');
         }
     })
+
+    app.patch('/tasks/:id', async (req, rep) => {
+        const { sub: userId } = req.user;
+
+        const paramsSchema = z.object({
+            id: z.string()
+        });
+
+        const bodySchema = z.object({
+            finished: z.boolean()
+        });
+
+        const { id } = paramsSchema.parse(req.params);
+        const { finished } = bodySchema.parse(req.body);
+
+        try {
+            const task = await prisma.task.findUnique({
+                where: { id }
+            });
+
+            if(!task) {
+                return rep.status(404).send('Tarefa não encontrada');
+            }
+
+            await prisma.task.update({
+                where: { id },
+
+                data: {
+                    finished
+                }
+            });
+
+            return rep.status(200).send('Status alterado');
+        } catch (error) {
+            return rep.status(500).send('Erro ao alterar o status de conclusão da tarefa');
+        }
+    })
 }
