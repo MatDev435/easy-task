@@ -40,17 +40,7 @@ export async function groupRoutes(app: FastifyInstance) {
             where: { id },
 
             include: {
-                _count: { select: { participants: true } },
-
-                tasks: {
-                    select: {
-                        id: true,
-                        title: true,
-                        description: true,
-                        priority: true,
-                        finished: true
-                    }
-                }
+                _count: { select: { participants: true } }
             }
         });
 
