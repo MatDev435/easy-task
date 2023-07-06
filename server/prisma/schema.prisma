@@ -43,7 +43,7 @@ model Participant {
   group Group   @relation(fields: [groupId], references: [id])
   tasks Task[]
   note  Note[]
-  Admin Admin[]
+  admin Admin[]
 
   @@unique([groupId, userId])
 }
