@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { isTaskOwner } from "../utils/isOwner";
+import { isUserGroupAdmin } from "../utils/isAdmin";
 
 export async function taskRoutes(app: FastifyInstance) {
     app.addHook('preHandler', async (request) => {
@@ -120,26 +122,46 @@ export async function taskRoutes(app: FastifyInstance) {
         }
     })
 
-    app.delete('/tasks/:id', async (req, rep) => {
+    app.delete('/groups/:id/tasks/:taskId', async (req, rep) => {
         const { sub: userId } = req.user;
 
         const paramsSchema = z.object({
-            id: z.string()
+            id: z.string(),
+            taskId: z.string()
         });
 
-        const { id } = paramsSchema.parse(req.params);
+        const { id, taskId } = paramsSchema.parse(req.params);
 
         try {
-            const task = await prisma.task.findUnique({
+            const group = await prisma.group.findUnique({
                 where: { id }
+            });
+
+            if(!group) {
+                return rep.status(403).send('Grupo não encontrado');
+            }
+
+            const task = await prisma.task.findUnique({
+                where: { id: taskId }
             });
 
             if(!task) {
                 return rep.status(404).send('Tarefa não encontrada');
             }
 
+            const isOwner = await isTaskOwner({ userId, taskId: taskId });
+            const isAdmin = await isUserGroupAdmin({ userId, groupId: id });
+
+            if(!isOwner || !isAdmin) {
+                return rep.status(403).send('Você não tem permissões suficiente');
+            }
+
+            await prisma.note.deleteMany({
+                where: { taskId }
+            });
+
             await prisma.task.delete({
-                where: { id }
+                where: { id: taskId }
             });
 
             return rep.status(200).send('Tarefa deletada');
