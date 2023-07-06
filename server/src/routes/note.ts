@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from '../lib/prisma';
 import { z } from "zod";
+import { isNoteOwner } from "../utils/isNoteOwner";
+import { isUserGroupAdmin } from "../utils/isAdmin";
 
 export async function noteRoutes(app: FastifyInstance) {
     app.addHook('preHandler', async (request) => {
@@ -21,7 +23,7 @@ export async function noteRoutes(app: FastifyInstance) {
                 where: { taskId }
             });
 
-            if(!notes) {
+            if(notes.length < 1) {
                 return rep.status(404).send('Essa tarefa não possui nenhuma nota');
             }
 
@@ -79,6 +81,51 @@ export async function noteRoutes(app: FastifyInstance) {
             return rep.status(201).send({ note });
         } catch (error) {
             return rep.status(500).send('Erro ao criar a nota');
+        }
+    })
+
+    app.delete('/groups/:groupId/tasks/:taskId/notes/:noteId', async (req, rep) => {
+        const { sub: userId } = req.user;
+
+        const paramsSchema = z.object({
+            taskId: z.string(),
+            noteId: z.string(),
+            groupId: z.string()
+        });
+
+        const { groupId, taskId, noteId } = paramsSchema.parse(req.params);
+
+        try {
+            const task = await prisma.task.findUnique({
+                where: { id: taskId }
+            });
+
+            if(!task) {
+                return rep.status(404).send('Tarefa não encontrada');
+            }
+
+            const note = await prisma.note.findUnique({
+                where: { id: noteId }
+            });
+
+            if(!note) {
+                return rep.status(404).send('Nota não encontrada');
+            }
+
+            const isOwner = await isNoteOwner({ userId, noteId });
+            const isAdmin = await isUserGroupAdmin({ userId, groupId });
+
+            if(!isOwner || !isAdmin) {
+                return rep.status(403).send('Você não tem permissões suficiente');
+            }
+
+            await prisma.note.delete({
+                where: { id: noteId }
+            });
+
+            return rep.status(200).send('Nota deletada');
+        } catch (error) {
+            return rep.status(500).send('Erro ao deletar a nota');
         }
     })
 }
