@@ -7,6 +7,7 @@ import cors from '@fastify/cors';
 import { authRoutes } from './routes/auth';
 import { groupRoutes } from './routes/group';
 import { taskRoutes } from './routes/task';
+import { noteRoutes } from './routes/note';
 
 const app = fastify();
 
@@ -21,6 +22,7 @@ app.register(jwt, {
 app.register(authRoutes);
 app.register(groupRoutes);
 app.register(taskRoutes);
+app.register(noteRoutes);
 
 app.listen({ port: 3333 }).then(() => {
     console.log('🚀 HTTP server running on http://localhost:3333')

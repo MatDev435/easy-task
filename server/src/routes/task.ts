@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { isTaskOwner } from "../utils/isOwner";
+import { isTaskOwner } from "../utils/isTaskOwner";
 import { isUserGroupAdmin } from "../utils/isAdmin";
 
 export async function taskRoutes(app: FastifyInstance) {
