@@ -50,4 +50,49 @@ export async function participantRoutes(app: FastifyInstance) {
             return rep.status(500).send('Erro ao listar os participantes');
         }
     })
+
+    app.post('/groups/:id/join', async (req, rep) => {
+        const { sub: userId } = req.user;
+
+        const paramsSchema = z.object({
+            id: z.string()
+        });
+
+        const bodySchema = z.object({
+            code: z.string()
+        });
+
+        const { id } = paramsSchema.parse(req.params);
+        const { code } = bodySchema.parse(req.body);
+
+        try {
+            const group = await prisma.group.findUnique({
+                where: { id }
+            });
+
+            if(!group || group.code !== code) {
+                return rep.status(404).send('Grupo não encontrado');
+            }
+
+            let participant = await prisma.participant.findFirst({
+                where: { userId, groupId: id }
+            });
+
+            if(participant) {
+                return rep.status(409).send('Você já faz parte desse grupo');
+            }
+
+            participant = await prisma.participant.create({
+                data: {
+                    userId,
+                    groupId: id
+                }
+            });
+
+            return rep.status(201).send({ participant });
+        } catch (error) {
+            return rep.status(500).send('Erro ao entrar no grupo');
+            console.log(error);
+        }
+    })
 }
