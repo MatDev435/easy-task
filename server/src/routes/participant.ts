@@ -95,4 +95,73 @@ export async function participantRoutes(app: FastifyInstance) {
             console.log(error);
         }
     })
+
+    app.delete('/groups/:id/participants/:participantId/leave', async (req, rep) => {
+        const { sub: userId } = req.user;
+
+        const paramsSchema = z.object({
+            id: z.string(),
+            participantId: z.string()
+        });
+
+        const { id, participantId } = paramsSchema.parse(req.params);
+
+        try {
+            const group = await prisma.group.findUnique({
+                where: { id },
+
+                include: {
+                    tasks: true
+                }
+            });
+
+            if(!group) {
+                return rep.status(404).send('Grupo não encontrado');
+            }
+
+            const participant = await prisma.participant.findFirst({
+                where: { userId, groupId: group.id }
+            });
+
+            if(!participant) {
+                return rep.status(404).send('Você não faz parte desse grupo');
+            }
+
+            if(participant.userId === group.ownerId) {
+                return rep.status(403).send('Você não pode sair do grupo');
+            }
+
+            const admin = await prisma.admin.findFirst({
+                where: { groupId: group.id, userId: participant.id }
+            });
+
+            if(admin) {
+                await prisma.admin.delete({
+                    where: { id: admin.id }
+                });
+            }
+
+            if(group.tasks.length > 0) {
+                for(const task of group.tasks) {
+                    await prisma.note.deleteMany({
+                        where: { taskId: task.id, userId: participant.id }
+                    });
+                }
+
+                await prisma.task.deleteMany({
+                    where: { userId: participant.id, groupId: group.id }
+                });
+            }
+
+            await prisma.participant.delete({
+                where: { id: participant.id },
+            });
+
+            return rep.status(200).send('Você saiu do grupo');
+        } catch (error) {
+            console.log(error);
+            return rep.status(500).send('Erro ao sair do grupo');
+            
+        }
+    })
 }
