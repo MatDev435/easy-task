@@ -242,7 +242,6 @@ export async function participantRoutes(app: FastifyInstance) {
 
             return rep.status(200).send('Usuário expulso');
         } catch (error) {
-            console.log(error);
             return rep.status(500).send('Erro ao expulsar o usuário');
         }
     })
